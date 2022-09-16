@@ -30,7 +30,11 @@ cmake --config Debug -S . -B build
 ```
 cmake --build build
 ```
-4. Start tcp_sniffer
+4. Optional (run unit tests)
+```
+cmake --build build --target test
+```
+6. Start tcp_sniffer
 ```
 sudo ./build/tcp_sniffer eth0
 ```
