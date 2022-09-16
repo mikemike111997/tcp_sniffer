@@ -40,8 +40,8 @@ node_t* findNode(const tcp_connection_info_t* connectionInfo)
     node_t* currentHead = listHead;
     while (currentHead)
     {
-        if (currentHead->connectionInfo.clientIP.s_addr == connectionInfo->clientIP.s_addr &&
-            currentHead->connectionInfo.clientPort == connectionInfo->clientPort)
+        if (currentHead->connectionInfo.serverIP.s_addr == connectionInfo->serverIP.s_addr &&
+            currentHead->connectionInfo.serverPort == connectionInfo->serverPort)
             break;
 
         currentHead = currentHead->next;
@@ -181,6 +181,11 @@ void analyzePackage(tcp_connection_info_t* newConnectionInfo)
             // handshake fail. Retry package recieved
             sessionInfo->connectionInfo.retryCount += 1;
             sessionInfo->connectionInfo.handshakeSucceeded = 0;
+
+            // update client host:port
+            sessionInfo->connectionInfo.clientIP  = newConnectionInfo->clientIP;
+            sessionInfo->connectionInfo.clientPort  = newConnectionInfo->clientPort;
+
             printSessionInfo(&sessionInfo->connectionInfo);
         }
         else if (previousFlags == (TH_SYN | TH_ACK) && currentFlags == TH_ACK)
