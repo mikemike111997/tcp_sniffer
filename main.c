@@ -10,32 +10,28 @@
 #include <string.h>
 
 
-struct TCPConnectionInfo
+typedef struct 
 {
-    // clientIP:clientPort is a session ID
     struct in_addr clientIP;
     uint16_t clientPort;
-
     struct in_addr serverIP;
     uint16_t serverPort;
-
     uint8_t lastFlag;
-
     uint16_t retryCount;
-
     uint8_t handshakeSucceeded; 
-};
+} tcp_connection_info_t; 
 
 
 typedef struct node
 {
-    struct TCPConnectionInfo connectionInfo;
+    tcp_connection_info_t connectionInfo;
     struct node* next;
 } node_t;
 
+// static variable that holds tcp connection info
 static node_t* listHead = NULL;
 
-node_t* findNode(const struct TCPConnectionInfo* connectionInfo)
+node_t* findNode(const tcp_connection_info_t* connectionInfo)
 {
     if (listHead == NULL || connectionInfo == NULL)
     {
@@ -55,12 +51,12 @@ node_t* findNode(const struct TCPConnectionInfo* connectionInfo)
     return currentHead;
 }
 
-node_t* insertNode(const struct TCPConnectionInfo* connectionInfo)
+node_t* insertNode(const tcp_connection_info_t* connectionInfo)
 {
     if (listHead == NULL)
     {
         listHead = (node_t*)malloc(sizeof(node_t));
-        memcpy(&listHead->connectionInfo, connectionInfo, sizeof(struct TCPConnectionInfo));
+        memcpy(&listHead->connectionInfo, connectionInfo, sizeof(tcp_connection_info_t));
         listHead->next = NULL;
 
         return listHead;
@@ -74,7 +70,7 @@ node_t* insertNode(const struct TCPConnectionInfo* connectionInfo)
 
     currentHead->next = (node_t*)malloc(sizeof(node_t));
     currentHead = currentHead->next;
-    memcpy(&currentHead->connectionInfo, connectionInfo, sizeof(struct TCPConnectionInfo));
+    memcpy(&currentHead->connectionInfo, connectionInfo, sizeof(tcp_connection_info_t));
     currentHead->next = NULL;
 
     return currentHead;
@@ -118,7 +114,7 @@ void deleteList()
     listHead = NULL;
 }
 
-static void printSessionInfo(const struct TCPConnectionInfo* connectionInfo)
+static void printSessionInfo(const tcp_connection_info_t* connectionInfo)
 { 
     char sourceIP[INET_ADDRSTRLEN];
     char destIP[INET_ADDRSTRLEN];
@@ -141,7 +137,7 @@ static void printSessionInfo(const struct TCPConnectionInfo* connectionInfo)
     }
 }
 
-void swapSrcDst(struct TCPConnectionInfo* newConnectionInfo)
+void swapSrcDst(tcp_connection_info_t* newConnectionInfo)
 {
     const struct in_addr clientIP = newConnectionInfo->clientIP;
     newConnectionInfo->clientIP = newConnectionInfo->serverIP;
@@ -152,7 +148,7 @@ void swapSrcDst(struct TCPConnectionInfo* newConnectionInfo)
     newConnectionInfo->serverPort = clientPort;
 }
 
-void updateSessionInfo(struct TCPConnectionInfo* newConnectionInfo)
+void analyzePackage(tcp_connection_info_t* newConnectionInfo)
 {
     node_t* sessionInfo = findNode(newConnectionInfo);
 
@@ -188,7 +184,9 @@ void updateSessionInfo(struct TCPConnectionInfo* newConnectionInfo)
     }
 }
 
-void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet)
+void packetHandler(u_char* userData __attribute__((unused)),
+                   const struct pcap_pkthdr* pkthdr __attribute__((unused)),
+                   const u_char* packet)
 {
     const struct ether_header* ethernetHeader = (struct ether_header*)packet;
     if (ntohs(ethernetHeader->ether_type) != ETHERTYPE_IP)
@@ -204,40 +202,29 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
         return;
     }
 
-    char sourceIP[INET_ADDRSTRLEN];
-    char destIP[INET_ADDRSTRLEN];
-
-    inet_ntop(AF_INET, &(ipHeader->ip_src), sourceIP, INET_ADDRSTRLEN);
-    inet_ntop(AF_INET, &(ipHeader->ip_dst), destIP, INET_ADDRSTRLEN);
-
-
     const struct tcphdr* tcpHeader = (struct tcphdr*)(packet + sizeof(struct ether_header) + sizeof(struct ip));
-    const u_int sourcePort = ntohs(tcpHeader->source);
-    const u_int destPort = ntohs(tcpHeader->dest);
 
-
-    char resBuffer[1024];
-    snprintf(resBuffer, sizeof(resBuffer), "%s:%d -> %s:%d; ack_seq: %u; seq_num: %u",
-             sourceIP, sourcePort, destIP, destPort, tcpHeader->ack_seq, tcpHeader->th_seq);
-
+    // No need to check other packages
     if (tcpHeader->th_flags & (TH_SYN | TH_ACK))
     {
-        struct TCPConnectionInfo info;
-        memset(&info, '\0', sizeof(struct TCPConnectionInfo)); 
+        tcp_connection_info_t info = {
+            .clientIP = ipHeader->ip_src,
+            .clientPort = tcpHeader->source,
+            .serverIP = ipHeader->ip_dst,
+            .serverPort = tcpHeader->dest,
+            .lastFlag = tcpHeader->th_flags,
+            .retryCount = 0,
+            .handshakeSucceeded = 0
+        };
 
-        info.clientIP = ipHeader->ip_src;
-        info.clientPort = tcpHeader->source;
-        info.serverIP = ipHeader->ip_dst;
-        info.serverPort = tcpHeader->dest;
-        info.lastFlag = tcpHeader->th_flags;
-
+        // SYN/ACK is sent by the server as a response on our SYN package
+        // so the source IP == server IP in this case
         if (info.lastFlag == (TH_SYN| TH_ACK))
             swapSrcDst(&info);
         
-        updateSessionInfo(&info);
+        analyzePackage(&info);
     }
 }
-
 
 int main(int argC, char* argV[])
 {
