@@ -74,3 +74,35 @@ void deleteNode(node_t** listHead, node_t* node);
  * @param listHead 
  */
 void deleteList(node_t** listHead);
+
+/**
+ * @brief Print current TCP session state with a proper retry counted according to AC1
+ * 
+ * @param connectionInfo 
+ */
+void printSessionInfo(node_t** listHead, const tcp_connection_info_t* connectionInfo);
+
+/**
+ * @brief Updates tcp connection info list with a new data 
+ * 
+ * @param newConnectionInfo tcp connection info
+ */
+void updateConnectionInfoList(node_t** listHead, tcp_connection_info_t* newConnectionInfo);
+
+/**
+ * @brief If a failed connection is repeated with the same source ip, destination ip and
+ *        destination port (source ports can differ), add a count to the report.
+ *        This function accumulates all retries across all records that has the same src ip, dst ip, dst port fields 
+ * 
+ * @param connectionInfo 
+ * @return uint32_t 
+ */
+uint32_t countOverallRetries(node_t** listHead, const tcp_connection_info_t* connectionInfo);
+
+/**
+ * @brief Count number of nodes in the list
+ * 
+ * @param listHead pointer to the list head
+ * @return uint32_t size of list
+ */
+uint32_t countNodes(node_t* listHead);
