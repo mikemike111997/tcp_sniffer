@@ -23,6 +23,8 @@
 #include <netinet/tcp.h>
 #include <string.h>
 
+#include "tcp_connection_info.h"
+
 
 enum STATUS_CODES
 {
@@ -31,133 +33,7 @@ enum STATUS_CODES
     PCAP_INITIALIZE_ERROR = 2
 };
 
-/**
- * @brief Contains TCP aggregated info.
- * 
- */
-typedef struct tcp_connection_info 
-{
-    struct in_addr clientIP;      /* client ip addess */
-    uint16_t clientPort;          /* client port */
-    struct in_addr serverIP;      /* destination ip addess */
-    uint16_t serverPort;          /* destination port */
-    uint8_t lastFlag;             /* last tcp package flags */
-    uint16_t retryCount;          /* tcp SYN retry count */
-    uint8_t handshakeSucceeded;   /* SYN -> SYN/ACT -> ACT condition met */
-} tcp_connection_info_t; 
-
-/**
- * @brief Single Linked list that contains TCP connection info data
- * 
- */
-typedef struct node
-{
-    tcp_connection_info_t connectionInfo;
-    struct node* next;
-} node_t;
-
-// static variable that holds tcp connection info
-static node_t* listHead = NULL;
-
-static node_t* findNode(const tcp_connection_info_t* connectionInfo)
-{
-    if (listHead == NULL || connectionInfo == NULL)
-    {
-        return NULL;
-    }
-
-    node_t* currentHead = listHead;
-    while (currentHead)
-    {
-        if (currentHead->connectionInfo.clientIP.s_addr == connectionInfo->clientIP.s_addr &&
-            currentHead->connectionInfo.clientPort == connectionInfo->clientPort)
-            break;
-
-        currentHead = currentHead->next;
-    }
-      
-    return currentHead;
-}
-
-/**
- * @brief Allocates and inserts a node to the end of the list or at the head of the list if head == NULL
- * 
- * @param connectionInfo 
- * @return node_t* pointer to the inserted node or NULL if malloc failed
- */
-static node_t* insertNode(const tcp_connection_info_t* connectionInfo)
-{
-    if (listHead == NULL)
-    {
-        listHead = (node_t*)malloc(sizeof(node_t));
-
-        // if malloc fails -> current package info is to be skipped
-        // per current design, only SYN packages that are not present in the list 
-        // lead to insertNode call
-        if (listHead == NULL)
-            return NULL;
-
-        memcpy(&listHead->connectionInfo, connectionInfo, sizeof(tcp_connection_info_t));
-        listHead->next = NULL;
-
-        return listHead;
-    }
-
-    node_t* currentHead = listHead;
-    while (currentHead->next != NULL)
-    {
-        currentHead = currentHead->next;
-    }
-
-    currentHead->next = (node_t*)malloc(sizeof(node_t));
-    // if malloc fails -> current package info is to be skipped
-    // per current design, only SYN packages that are not present in the list 
-    // lead to insertNode call
-    if (currentHead->next == NULL)
-        return NULL;
-
-    currentHead = currentHead->next;
-    memcpy(&currentHead->connectionInfo, connectionInfo, sizeof(tcp_connection_info_t));
-    currentHead->next = NULL;
-
-    return currentHead;
-}
-
-static void deleteNode(node_t* node)
-{
-    if (listHead == NULL || node == NULL)
-        return;
-
-    node_t* currentNode = listHead;
-    if (currentNode == node)
-    {
-        listHead = currentNode->next;
-        free(currentNode);
-        return;
-    }
-
-
-    while (currentNode && currentNode->next != node)
-    {
-        currentNode = currentNode->next;
-    }
-
-    if (currentNode)
-        currentNode->next = node->next;
-    free(node);
-}
-
-static void deleteList()
-{
-    while(listHead)
-    {
-        node_t* next = listHead->next;
-        free(listHead);
-        listHead = next;
-    }
-
-    listHead = NULL;
-}
+static node_t* listHead;
 
 /**
  * @brief If a failed connection is repeated with the same source ip, destination ip and
@@ -229,19 +105,19 @@ static void swapSrcDst(tcp_connection_info_t* connectionInfo)
  * 
  * @param newConnectionInfo tcp connection info
  */
-void updateConnectionInfoList(tcp_connection_info_t* newConnectionInfo)
+static void updateConnectionInfoList(tcp_connection_info_t* newConnectionInfo)
 {
     // SYN/ACK is sent by the server as a response on our SYN package
     // so the source IP == server IP in this case
     if (newConnectionInfo->lastFlag == (TH_SYN| TH_ACK))
         swapSrcDst(newConnectionInfo);
 
-    node_t* existingSessionInfo = findNode(newConnectionInfo);
+    node_t* existingSessionInfo = findNode(&listHead, newConnectionInfo);
 
     if (existingSessionInfo == NULL && newConnectionInfo->lastFlag == TH_SYN)
     {
         // insert only nodes that start TCP handshake process
-        existingSessionInfo = insertNode(newConnectionInfo);
+        existingSessionInfo = insertNode(&listHead, newConnectionInfo);
     }
     else if (existingSessionInfo != NULL)
     {
@@ -270,7 +146,7 @@ void updateConnectionInfoList(tcp_connection_info_t* newConnectionInfo)
             printSessionInfo(&existingSessionInfo->connectionInfo);
 
             // no need to store this connection info anymore
-            deleteNode(existingSessionInfo);
+            deleteNode(&listHead, existingSessionInfo);
         }
     }
 }

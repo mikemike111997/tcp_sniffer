@@ -12,5 +12,7 @@ endif()
 add_compile_options(-Wall -Wextra -pedantic -Werror)
 add_compile_options(-Wno-error=unused-parameter)
 
+add_library(tcp_connection_info OBJECT tcp_connection_info.c)
+
 add_executable(${PROJECT_NAME} main.c)
-target_link_libraries(${PROJECT_NAME} pcap)
+target_link_libraries(${PROJECT_NAME} pcap tcp_connection_info)
