@@ -10,7 +10,7 @@
 #include <string.h>
 
 
-typedef struct 
+typedef struct tcp_connection_info 
 {
     struct in_addr clientIP;
     uint16_t clientPort;
@@ -20,7 +20,6 @@ typedef struct
     uint16_t retryCount;
     uint8_t handshakeSucceeded; 
 } tcp_connection_info_t; 
-
 
 typedef struct node
 {
@@ -127,13 +126,13 @@ static void printSessionInfo(const tcp_connection_info_t* connectionInfo)
 
     if (connectionInfo->handshakeSucceeded)
     {
-        printf("SUCCESS                   %s:%u -> %s:%u \n",
-                sourceIP, sourcePort, destIP, destPort);
+        printf("%10s\t%s:%u -> %s:%u \n",
+                "SUCCESS", sourceIP, sourcePort, destIP, destPort);
     }
     else
     {
-        printf("FAILED (retry count: %u)  %s:%u -> %s:%u \n",
-               (*connectionInfo).retryCount, sourceIP, sourcePort, destIP, destPort);
+        printf("%10s\t%s:%u -> %s:%u\t(retry count: %u)\n",
+               "FAILED", sourceIP, sourcePort, destIP, destPort, connectionInfo->retryCount);
     }
 }
 
