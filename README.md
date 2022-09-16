@@ -18,6 +18,23 @@ Unit test target is optional and might be skipped if libcheck is not found on yo
 4. `libsubunit`
 5. `valgrind` (if found on system, a separate ctest target is to be created to run the test program under valgrind with memchecks enabled)
 
+## How to build and run project
+1. Clone the master brach locally
+2. Configure project via cmake.
+In this example a Debug configuration build is to be built in the build folder.
+Cmake would create folder if it doesn't exist
+```
+cmake --config Debug -S . -B build
+```
+3. Build project
+```
+cmake --build build
+```
+4. Start tcp_sniffer
+```
+sudo ./build/tcp_sniffer eth0
+```
+
 ## Example output:
 ```
 SUCCESS src_ip:port -> dst_ip:port
