@@ -16,3 +16,11 @@ add_library(tcp_connection_info OBJECT tcp_connection_info.c)
 
 add_executable(${PROJECT_NAME} main.c)
 target_link_libraries(${PROJECT_NAME} pcap tcp_connection_info)
+
+find_library(CHECK_LIB check)
+if(NOT CHECK_LIB)
+    message(FATAL_ERROR "lua library not found")
+else()
+    include(CTest)
+    add_subdirectory(tests)
+endif()
