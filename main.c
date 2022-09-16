@@ -55,6 +55,13 @@ node_t* insertNode(const tcp_connection_info_t* connectionInfo)
     if (listHead == NULL)
     {
         listHead = (node_t*)malloc(sizeof(node_t));
+
+        // if malloc fails -> current package info is to be skipped
+        // per current design, only SYN packages that are not present in the list 
+        // lead to insertNode call
+        if (listHead == NULL)
+            return NULL;
+
         memcpy(&listHead->connectionInfo, connectionInfo, sizeof(tcp_connection_info_t));
         listHead->next = NULL;
 
@@ -68,6 +75,12 @@ node_t* insertNode(const tcp_connection_info_t* connectionInfo)
     }
 
     currentHead->next = (node_t*)malloc(sizeof(node_t));
+    // if malloc fails -> current package info is to be skipped
+    // per current design, only SYN packages that are not present in the list 
+    // lead to insertNode call
+    if (currentHead->next == NULL)
+        return NULL;
+
     currentHead = currentHead->next;
     memcpy(&currentHead->connectionInfo, connectionInfo, sizeof(tcp_connection_info_t));
     currentHead->next = NULL;
@@ -230,29 +243,31 @@ int main(int argC, char* argV[])
     if (argC != 2)
     {
         fprintf(stderr, "Error: expected device name as an input param");
-        return -1;
+        return 1;
     }
-
-    char* dev = argV[1];
-    printf("Device name is %s\n", dev);
-
+ 
     char errbuf[PCAP_ERRBUF_SIZE] = {0};
 
     // filter trafic
-    struct bpf_program fp;  /* The compiled filter expression */
-    char filter_exp[] = "tcp "; /* The filter expression */
-    bpf_u_int32 mask = 0;   /* The netmask of our sniffing device */
-    bpf_u_int32 net = 0;        /* The IP of our sniffing device */
+    struct bpf_program fp;      // The compiled filter expression 
+    char filter_exp[] = "tcp "; // The filter expression
+    bpf_u_int32 mask = 0;       // The netmask of our sniffing device
+    bpf_u_int32 net = 0;        // The IP of our sniffing device
 
+    char* dev = argV[1];
     if (pcap_lookupnet(dev, &net, &mask, errbuf) == -1)
     {
-        fprintf(stderr, "Can't get netmask for device %s\n", dev);
-        net = 0;
-        mask = 0;
+        fprintf(stderr, "pcap_lookupnet failed for device %s\n", dev);
+        fprintf(stderr, "%s\n", errbuf);
+        return 2;
     }
     else
     {
-        printf("Dev: %s; net: %u; mask: %u\n", dev, net, mask);
+        struct in_addr ip_addr = {.s_addr = net};
+        struct in_addr ip_mask_addr = {.s_addr = mask};
+        printf("Device: %s\n", dev);
+        printf("Network: %s\n", inet_ntoa(ip_addr));
+        printf("Mask = %s\n", inet_ntoa(ip_mask_addr));
     }
 
     pcap_t* handle = pcap_open_live(dev, BUFSIZ, 1, 1000, errbuf);
@@ -276,7 +291,7 @@ int main(int argC, char* argV[])
 
     pcap_loop(handle, -1, packetHandler, NULL);
 
-    /* And close the session */
+    // clean up resources
     pcap_close(handle);
 
     pcap_freecode(&fp);
