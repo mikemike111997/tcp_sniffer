@@ -36,7 +36,4 @@ sudo ./build/tcp_sniffer eth0
 ```
 
 ## Example output:
-```
-SUCCESS src_ip:port -> dst_ip:port
-FAILED src_ip:port -> dst_ip:port
-```
+![image](https://user-images.githubusercontent.com/22596843/190789158-299d5300-da6e-4035-ab1d-12bfad45fee5.png)
