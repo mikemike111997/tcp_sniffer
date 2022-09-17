@@ -39,5 +39,14 @@ cmake --build build --target test
 sudo ./build/tcp_sniffer eth0
 ```
 
+## Deb package
+Project contains a deb package in the _package folder, here's how to build it in Ubuntu:
+```
+wget https://github.com/mikemike111997/tcp_sniffer/raw/master/_packages/tcp_sniffer.0.1_0.1.1_amd64.deb --directory-prefix=/tmp
+```
+```
+sudo apt install -y /tmp/tcp_sniffer.0.1_0.1.1_amd64.deb
+```
+
 ## Example output:
 ![image](https://user-images.githubusercontent.com/22596843/190789158-299d5300-da6e-4035-ab1d-12bfad45fee5.png)
