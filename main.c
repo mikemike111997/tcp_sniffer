@@ -159,43 +159,47 @@ int main(void)
     char errbuf[PCAP_ERRBUF_SIZE] = {0}; // pcap error buffer
     pcap_if_t *it = NULL;
 
-    if(pcap_findalldevs(&it, errbuf) == 0)
-    {
-        const size_t availableDevicesCount = coundDevicesAvaiilable(it);
-
-        printf("Number of available devices for TPC traffic sniffing: %lu\n", availableDevicesCount);
-
-        pthread_t threads[availableDevicesCount];
-        memset(&threads, 0, sizeof(threads));
-
-        // spawn worker threads
-        for (size_t i = 0; i < availableDevicesCount; ++i)
-        {
-            if (isCapturebleDevie(it + i))
-            {
-                if (pthread_create(&threads[i], NULL, &analyzeTrafficThreadFunct, (void*)(it + i)->name))
-                    fprintf(stderr, "Thead creation failed for the dev %s",(it + i)->name);
-            }
-        }
-
-        // join threads
-        for (size_t i = 0; i < availableDevicesCount; ++i)
-        {
-            if (pthread_join(threads[i], NULL) != 0)
-                perror("Tread join failed");
-        }
-
-        // clear resources
-        pcap_freealldevs(it);
-    }
-    else
+    if(pcap_findalldevs(&it, errbuf) != 0)
     {
         fprintf(stderr, "pcap_findalldevs failed.\n");
         fprintf(stderr, "%s\n", errbuf);
         return PCAP_INITIALIZE_ERROR;
     }
 
+    const size_t availableDevicesCount = coundDevicesAvaiilable(it);
+
+    printf("Number of available devices for TPC traffic sniffing: %lu\n", availableDevicesCount);
+
+    pthread_t threads[availableDevicesCount];
+    memset(&threads, 0, sizeof(threads));
+
+    // spawn worker threads
+    for (size_t i = 0; i < availableDevicesCount; ++i)
+    {
+        if (isCapturebleDevie(it + i))
+        {
+            if (pthread_create(&threads[i], NULL, &analyzeTrafficThreadFunct, (void*)(it + i)->name))
+            {
+                perror("pthread_create failed");
+                fprintf(stderr, "pthread_join failed for the dev %s",(it + i)->name);
+            }
+        }
+    }
+
+    // join threads
+    for (size_t i = 0; i < availableDevicesCount; ++i)
+    {
+        if (pthread_join(threads[i], NULL) != 0)
+            perror("pthread_join failed");
+    }
+
+    // clear resources
+    pcap_freealldevs(it);
+
+    pthread_mutex_lock(&lock);
     deleteList(&listHead);
+    pthread_mutex_unlock(&lock);
+
 
     return SUCCESS;
 }
