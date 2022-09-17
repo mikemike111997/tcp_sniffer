@@ -12,6 +12,7 @@
  * 
  */
 
+#include "tcp_connection_info.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pcap.h>
@@ -23,7 +24,8 @@
 #include <netinet/tcp.h>
 #include <string.h>
 #include <pthread.h>
-#include "tcp_connection_info.h"
+#include <stdatomic.h>
+#include <signal.h>
 
 
 enum STATUS_CODES
@@ -34,7 +36,9 @@ enum STATUS_CODES
 
 static node_t* listHead;
 
-pthread_mutex_t lock;
+static pthread_mutex_t lock;
+
+static atomic_int isRunning = 1;
 
 static void packetHandler(u_char* userData __attribute__((unused)),
                           const struct pcap_pkthdr* pkthdr __attribute__((unused)),
@@ -68,6 +72,9 @@ static void packetHandler(u_char* userData __attribute__((unused)),
         updateConnectionInfoList(&listHead, &info);
         pthread_mutex_unlock(&lock);
     }
+
+    if (isRunning == 0)
+        pcap_breakloop((pcap_t*)userData);
 }
 
 static void* analyzeTrafficThreadFunct(void* devName)
@@ -119,7 +126,7 @@ static void* analyzeTrafficThreadFunct(void* devName)
         return NULL;
     }
 
-    pcap_loop(handle, -1, packetHandler, NULL);
+    pcap_loop(handle, -1, packetHandler, (u_char*)handle);
 
     // clean up resources
     pcap_close(handle);
@@ -155,8 +162,15 @@ static size_t coundDevicesAvaiilable(pcap_if_t* it)
     return res;
 }
 
+static void sigHandler(int signum)
+{
+    isRunning = 0;
+}
+
 int main(void)
 {
+    signal(SIGINT, sigHandler); 
+
     char errbuf[PCAP_ERRBUF_SIZE] = {0}; // pcap error buffer
     pcap_if_t *it = NULL;
 
@@ -203,6 +217,7 @@ int main(void)
     deleteList(&listHead);
     pthread_mutex_unlock(&lock);
 
+    printf("Application has been gracefully stopped\n");
 
     return SUCCESS;
 }
