@@ -161,7 +161,6 @@ int main(void)
 
     if(pcap_findalldevs(&it, errbuf) == 0)
     {
-        pcap_if_t* current = it;
         const size_t availableDevicesCount = coundDevicesAvaiilable(it);
 
         printf("Number of available devices for TPC traffic sniffing: %lu\n", availableDevicesCount);
@@ -172,13 +171,11 @@ int main(void)
         // spawn worker threads
         for (size_t i = 0; i < availableDevicesCount; ++i)
         {
-            if (isCapturebleDevie(it))
+            if (isCapturebleDevie(it + i))
             {
-                if (pthread_create(&threads[i], NULL, &analyzeTrafficThreadFunct, (void*)current->name))
-                    fprintf(stderr, "Thead creation failed for the dev %s", current->name);
+                if (pthread_create(&threads[i], NULL, &analyzeTrafficThreadFunct, (void*)(it + i)->name))
+                    fprintf(stderr, "Thead creation failed for the dev %s",(it + i)->name);
             }
-
-            current = current->next;
         }
 
         // join threads
