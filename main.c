@@ -164,6 +164,7 @@ static size_t coundDevicesAvaiilable(pcap_if_t* it)
 
 static void sigHandler(int signum)
 {
+    printf("Stopping application, signal %d caught\n", signum);
     isRunning = 0;
 }
 
