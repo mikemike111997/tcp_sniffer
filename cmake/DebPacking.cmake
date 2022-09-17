@@ -1,8 +1,7 @@
 SET(CPACK_GENERATOR "DEB")
 
-set(CPACK_PACKAGE_NAME ${PROJECT_NAME}/${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+set(CPACK_PACKAGE_NAME ${PROJECT_NAME}.${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     CACHE STRING "The resulting package name")
-message("CPACK_PACKAGE_NAME = ${CPACK_PACKAGE_NAME}")
 
 
 # which is useful in case of packing only selected components instead of the whole thing

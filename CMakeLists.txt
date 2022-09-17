@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16.3 FATAL_ERROR)
 
-project(tcp_analyzer VERSION 0.1.1  LANGUAGES C)
+project(tcp_sniffer VERSION 0.1.1  LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 
