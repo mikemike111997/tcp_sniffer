@@ -42,15 +42,12 @@ static void packetHandler(u_char* userData __attribute__((unused)),
 {
     const struct ether_header* ethernetHeader = (struct ether_header*)packet;
     if (ntohs(ethernetHeader->ether_type) != ETHERTYPE_IP)
-    {
         return;
-    }
+
 
     const struct ip* ipHeader = (struct ip*)(packet + sizeof(struct ether_header));
     if (ipHeader->ip_p != IPPROTO_TCP)
-    {
         return;
-    }
 
     const struct tcphdr* tcpHeader = (struct tcphdr*)(packet + sizeof(struct ether_header) + sizeof(struct ip));
 
@@ -92,9 +89,15 @@ static void* analyzeTrafficThreadFunct(void* devName)
     {
         struct in_addr ip_addr = {.s_addr = net};
         struct in_addr ip_mask_addr = {.s_addr = mask};
-        printf("Device: %s ", dev);
-        printf("Network: %s ", inet_ntoa(ip_addr));
-        printf("Mask = %s\n", inet_ntoa(ip_mask_addr));
+
+        const size_t maxBufferLen = 32;
+        char network[maxBufferLen];
+        char mask[maxBufferLen];
+
+        snprintf(network, maxBufferLen, "%s", inet_ntoa(ip_addr));
+        snprintf(mask, maxBufferLen, "%s", inet_ntoa(ip_mask_addr));
+
+        printf("Device: %s; Network: %s; Mask = %s\n", dev, network, mask);
     }
 
     pcap_t* handle = pcap_open_live(dev, BUFSIZ, 1, 1000, errbuf);
@@ -181,8 +184,8 @@ int main(void)
         // join threads
         for (size_t i = 0; i < availableDevicesCount; ++i)
         {
-            if (pthread_join(threads[i], NULL))
-                fprintf(stderr, "Thead join failed!");
+            if (pthread_join(threads[i], NULL) != 0)
+                perror("Tread join failed");
         }
 
         // clear resources
