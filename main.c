@@ -148,6 +148,7 @@ static size_t coundDevicesAvaiilable(pcap_if_t* it)
     {
         if (isCapturebleDevie(it))
             ++res;
+
         it = it->next;
     } 
 
@@ -174,16 +175,18 @@ int main(void)
     memset(&threads, 0, sizeof(threads));
 
     // spawn worker threads
+    pcap_if_t* current = it;
     for (size_t i = 0; i < availableDevicesCount; ++i)
     {
-        if (isCapturebleDevie(it + i))
+        if (isCapturebleDevie(current))
         {
-            if (pthread_create(&threads[i], NULL, &analyzeTrafficThreadFunct, (void*)(it + i)->name))
+            if (pthread_create(&threads[i], NULL, &analyzeTrafficThreadFunct, (void*)current->name))
             {
                 perror("pthread_create failed");
-                fprintf(stderr, "pthread_join failed for the dev %s",(it + i)->name);
+                fprintf(stderr, "pthread_join failed for the dev %s",current->name);
             }
         }
+        current = current->next;
     }
 
     // join threads
